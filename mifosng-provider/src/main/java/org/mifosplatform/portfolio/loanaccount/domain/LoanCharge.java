@@ -913,4 +913,22 @@ public class LoanCharge extends AbstractPersistable<Long> {
             this.dueDate = dueDate.toDate();
         }
     }
+    
+    public void payCharge(BigDecimal amount) {
+    	
+    	if (this.amountOutstanding.compareTo(BigDecimal.ZERO) == 1 && 
+    			!(this.amountOutstanding.compareTo(amount) == -1)) {
+    		
+    		if (this.amountPaid == null) {
+    			this.amountPaid = BigDecimal.ZERO;
+    		}
+    		
+    		this.amountPaid = this.amountPaid.add(amount);
+    		this.amountOutstanding = this.amountOutstanding.subtract(amount);
+    		
+    		if (this.amountOutstanding.compareTo(BigDecimal.ZERO) == 0) {
+        		this.markAsFullyPaid();
+        	}
+    	}
+    }
 }

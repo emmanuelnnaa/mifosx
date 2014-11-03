@@ -125,7 +125,7 @@ public class LoanAccountDomainServiceJpa implements LoanAccountDomainService {
          * .validateRepaymentDateWithMeetingDate(transactionDate,
          * calendarInstance); }
          */
-
+System.out.println("works here 1");
         final List<Long> existingTransactionIds = new ArrayList<>();
         final List<Long> existingReversedTransactionIds = new ArrayList<>();
 
@@ -162,7 +162,7 @@ public class LoanAccountDomainServiceJpa implements LoanAccountDomainService {
 
             isHolidayEnabled = this.configurationDomainService.isRescheduleRepaymentsOnHolidaysEnabled();
         }
-
+        System.out.println("works here 2");
         final ChangedTransactionDetail changedTransactionDetail = loan.makeRepayment(newRepaymentTransaction,
                 defaultLoanLifecycleStateMachine(), existingTransactionIds, existingReversedTransactionIds, allowTransactionsOnHoliday,
                 holidays, workingDays, allowTransactionsOnNonWorkingDay, isHolidayEnabled, isRecoveryRepayment, this.loanScheduleFactory,
@@ -179,7 +179,7 @@ public class LoanAccountDomainServiceJpa implements LoanAccountDomainService {
          ***/
 
         saveAndFlushLoanWithDataIntegrityViolationChecks(loan);
-
+        System.out.println("works here 3");
         if (changedTransactionDetail != null) {
             for (Map.Entry<Long, LoanTransaction> mapEntry : changedTransactionDetail.getNewTransactionMappings().entrySet()) {
                 saveLoanTransactionWithDataIntegrityViolationChecks(mapEntry.getValue());
@@ -193,7 +193,7 @@ public class LoanAccountDomainServiceJpa implements LoanAccountDomainService {
             final Note note = Note.loanTransactionNote(loan, newRepaymentTransaction, noteText);
             this.noteRepository.save(note);
         }
-
+        System.out.println("works here 4");
         postJournalEntries(loan, existingTransactionIds, existingReversedTransactionIds, isAccountTransfer);
 
         recalculateAccruals(loan);
@@ -264,7 +264,7 @@ public class LoanAccountDomainServiceJpa implements LoanAccountDomainService {
                 transactionDate.toDate(), HolidayStatusType.ACTIVE.getValue());
         final WorkingDays workingDays = this.workingDaysRepository.findOne();
         final boolean allowTransactionsOnNonWorkingDay = this.configurationDomainService.allowTransactionsOnNonWorkingDayEnabled();
-        if (loanTransactionType.isRepaymentAtDisbursement()) {
+        if (loanTransactionType.isRepaymentAtDisbursement() || loanTransactionType.isRepayment()) {
             loan.handlePayDisbursementTransaction(chargeId, newPaymentTransaction, existingTransactionIds, existingReversedTransactionIds);
         } else {
             loan.makeChargePayment(chargeId, defaultLoanLifecycleStateMachine(), existingTransactionIds, existingReversedTransactionIds,

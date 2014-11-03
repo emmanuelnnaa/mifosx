@@ -70,11 +70,12 @@ public class LoanSchedulePeriodData {
     private final BigDecimal totalActualCostOfLoanForPeriod;
 
     public static LoanSchedulePeriodData disbursementOnlyPeriod(final LocalDate disbursementDate, final BigDecimal principalDisbursed,
-            final BigDecimal feeChargesDueAtTimeOfDisbursement, final boolean isDisbursed) {
+            final BigDecimal feeChargesDueAtTimeOfDisbursement, final boolean isDisbursed, 
+            final BigDecimal feeChargesRepaidAtDisbursement) {
         final Integer periodNumber = null;
         final LocalDate from = null;
         return new LoanSchedulePeriodData(periodNumber, from, disbursementDate, principalDisbursed, feeChargesDueAtTimeOfDisbursement,
-                isDisbursed);
+                isDisbursed, feeChargesRepaidAtDisbursement);
     }
 
     public static LoanSchedulePeriodData repaymentOnlyPeriod(final Integer periodNumber, final LocalDate fromDate, final LocalDate dueDate,
@@ -113,7 +114,8 @@ public class LoanSchedulePeriodData {
      * disbursement (typically first period)
      */
     private LoanSchedulePeriodData(final Integer periodNumber, final LocalDate fromDate, final LocalDate dueDate,
-            final BigDecimal principalDisbursed, final BigDecimal chargesDueAtTimeOfDisbursement, final boolean isDisbursed) {
+            final BigDecimal principalDisbursed, final BigDecimal chargesDueAtTimeOfDisbursement, final boolean isDisbursed, 
+            final BigDecimal feeChargesRepaidAtDisbursement) {
         this.period = periodNumber;
         this.fromDate = fromDate;
         this.dueDate = dueDate;
@@ -141,10 +143,10 @@ public class LoanSchedulePeriodData {
 
         this.feeChargesDue = chargesDueAtTimeOfDisbursement;
         if (isDisbursed) {
-            this.feeChargesPaid = chargesDueAtTimeOfDisbursement;
+            this.feeChargesPaid = feeChargesRepaidAtDisbursement;
             this.feeChargesWaived = null;
             this.feeChargesWrittenOff = null;
-            this.feeChargesOutstanding = null;
+            this.feeChargesOutstanding = chargesDueAtTimeOfDisbursement.subtract(feeChargesRepaidAtDisbursement);
         } else {
             this.feeChargesPaid = null;
             this.feeChargesWaived = null;

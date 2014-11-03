@@ -22,32 +22,35 @@ public final class LoanScheduleModelDisbursementPeriod implements LoanScheduleMo
     private final LocalDate disbursementDate;
     private final Money principalDisbursed;
     private final BigDecimal chargesDueAtTimeOfDisbursement;
+    private final BigDecimal chargesRepaidAtDisbursement;
 
     public static LoanScheduleModelDisbursementPeriod disbursement(final LoanApplicationTerms loanApplicationTerms,
-            final BigDecimal chargesDueAtTimeOfDisbursement) {
+            final BigDecimal chargesDueAtTimeOfDisbursement, final BigDecimal chargesRepaidAtDisbursement) {
 
         final int periodNumber = 0;
         return new LoanScheduleModelDisbursementPeriod(periodNumber, loanApplicationTerms.getExpectedDisbursementDate(),
-                loanApplicationTerms.getPrincipal(), chargesDueAtTimeOfDisbursement);
+                loanApplicationTerms.getPrincipal(), chargesDueAtTimeOfDisbursement, chargesRepaidAtDisbursement);
     }
 
     public static LoanScheduleModelDisbursementPeriod disbursement(final LocalDate disbursementDate, final Money principalDisbursed,
-            final BigDecimal chargesDueAtTimeOfDisbursement) {
-        return new LoanScheduleModelDisbursementPeriod(null, disbursementDate, principalDisbursed, chargesDueAtTimeOfDisbursement);
+            final BigDecimal chargesDueAtTimeOfDisbursement, final BigDecimal chargesRepaidAtDisbursement) {
+        return new LoanScheduleModelDisbursementPeriod(null, disbursementDate, principalDisbursed, chargesDueAtTimeOfDisbursement, chargesRepaidAtDisbursement);
     }
 
     private LoanScheduleModelDisbursementPeriod(final Integer periodNumber, final LocalDate disbursementDate,
-            final Money principalDisbursed, final BigDecimal chargesDueAtTimeOfDisbursement) {
+            final Money principalDisbursed, final BigDecimal chargesDueAtTimeOfDisbursement, 
+            final BigDecimal chargesRepaidAtDisbursement) {
         this.periodNumber = periodNumber;
         this.disbursementDate = disbursementDate;
         this.principalDisbursed = principalDisbursed;
         this.chargesDueAtTimeOfDisbursement = chargesDueAtTimeOfDisbursement;
+        this.chargesRepaidAtDisbursement = chargesRepaidAtDisbursement;
     }
 
     @Override
     public LoanSchedulePeriodData toData() {
         return LoanSchedulePeriodData.disbursementOnlyPeriod(this.disbursementDate, this.principalDisbursed.getAmount(),
-                this.chargesDueAtTimeOfDisbursement, false);
+                this.chargesDueAtTimeOfDisbursement, false, this.chargesRepaidAtDisbursement);
     }
 
     @Override
@@ -99,4 +102,8 @@ public final class LoanScheduleModelDisbursementPeriod implements LoanScheduleMo
     public boolean isRecalculatedInterestComponent() {
         return false;
     }
+
+	public BigDecimal getChargesRepaidAtDisbursement() {
+		return chargesRepaidAtDisbursement;
+	}
 }

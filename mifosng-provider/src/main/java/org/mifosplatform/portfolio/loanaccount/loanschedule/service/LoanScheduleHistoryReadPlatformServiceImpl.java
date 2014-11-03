@@ -76,6 +76,7 @@ public class LoanScheduleHistoryReadPlatformServiceImpl implements LoanScheduleH
         private final Collection<DisbursementData> disbursementData;
         private LocalDate lastDueDate;
         private BigDecimal outstandingLoanPrincipalBalance;
+        private BigDecimal totalFeeChargesRepaidAtDisbursement;
 
         public LoanScheduleArchiveResultSetExtractor(final RepaymentScheduleRelatedLoanData repaymentScheduleRelatedLoanData,
                 Collection<DisbursementData> disbursementData) {
@@ -85,6 +86,7 @@ public class LoanScheduleHistoryReadPlatformServiceImpl implements LoanScheduleH
             this.lastDueDate = this.disbursement.disbursementDate();
             this.outstandingLoanPrincipalBalance = this.disbursement.amount();
             this.disbursementData = disbursementData;
+            this.totalFeeChargesRepaidAtDisbursement = repaymentScheduleRelatedLoanData.getTotalFeeChargesRepaidAtDisbursement();
         }
 
         public String schema() {
@@ -101,7 +103,7 @@ public class LoanScheduleHistoryReadPlatformServiceImpl implements LoanScheduleH
 
             final LoanSchedulePeriodData disbursementPeriod = LoanSchedulePeriodData.disbursementOnlyPeriod(
                     this.disbursement.disbursementDate(), this.disbursement.amount(), this.totalFeeChargesDueAtDisbursement,
-                    this.disbursement.isDisbursed());
+                    this.disbursement.isDisbursed(), this.totalFeeChargesRepaidAtDisbursement);
 
             final Collection<LoanSchedulePeriodData> periods = new ArrayList<>();
             final MonetaryCurrency monCurrency = new MonetaryCurrency(this.currency.code(), this.currency.decimalPlaces(),
@@ -135,14 +137,16 @@ public class LoanScheduleHistoryReadPlatformServiceImpl implements LoanScheduleH
                         if (fromDate.equals(this.disbursement.disbursementDate()) && data.disbursementDate().equals(fromDate)) {
                             principal = principal.add(data.amount());
                             final LoanSchedulePeriodData periodData = LoanSchedulePeriodData.disbursementOnlyPeriod(
-                                    data.disbursementDate(), data.amount(), this.totalFeeChargesDueAtDisbursement, data.isDisbursed());
+                                    data.disbursementDate(), data.amount(), this.totalFeeChargesDueAtDisbursement, data.isDisbursed(), 
+                                    this.totalFeeChargesRepaidAtDisbursement);
                             periods.add(periodData);
                             this.outstandingLoanPrincipalBalance = this.outstandingLoanPrincipalBalance.add(data.amount());
                         } else if (data.isDueForDisbursement(fromDate, dueDate)
                                 && this.outstandingLoanPrincipalBalance.compareTo(BigDecimal.ZERO) == 1) {
                             principal = principal.add(data.amount());
                             final LoanSchedulePeriodData periodData = LoanSchedulePeriodData.disbursementOnlyPeriod(
-                                    data.disbursementDate(), data.amount(), BigDecimal.ZERO, data.isDisbursed());
+                                    data.disbursementDate(), data.amount(), BigDecimal.ZERO, data.isDisbursed(), 
+                                    this.totalFeeChargesRepaidAtDisbursement);
                             periods.add(periodData);
                             this.outstandingLoanPrincipalBalance = this.outstandingLoanPrincipalBalance.add(data.amount());
                         }

@@ -101,6 +101,7 @@ import org.mifosplatform.portfolio.loanproduct.domain.LoanProductRelatedDetail;
 import org.mifosplatform.portfolio.loanproduct.domain.LoanTransactionProcessingStrategy;
 import org.mifosplatform.portfolio.loanproduct.domain.RecalculationFrequencyType;
 import org.mifosplatform.portfolio.loanproduct.service.LoanEnumerations;
+import org.mifosplatform.portfolio.paymentdetail.domain.PaymentDetail;
 import org.mifosplatform.useradministration.domain.AppUser;
 import org.springframework.data.jpa.domain.AbstractPersistable;
 
@@ -442,7 +443,7 @@ public class Loan extends AbstractPersistable<Long> {
         Money chargesDue = Money.of(getCurrency(), BigDecimal.ZERO);
 
         for (final LoanCharge charge : charges()) {
-            if (charge.isDueAtDisbursement()) {
+            if (charge.isDueAtDisbursement() || charge.isDisbursementPaidWithRepayment()) {
                 chargesDue = chargesDue.plus(charge.amount());
             }
         }
@@ -1860,8 +1861,9 @@ public class Loan extends AbstractPersistable<Long> {
             regenerateRepaymentScheduleWithInterestRecalculation(loanScheduleFactory, currency, calculatedRepaymentsStartingFromDate,
                     isHolidayEnabled, holidays, workingDays, calendarInstanceForInterestRecalculation, recalculateFrom);
         }
-
+        
         updateSummaryWithTotalFeeChargesDueAtDisbursement(deriveSumTotalOfChargesDueAtDisbursement());
+        this.summary.updateTotalFeeChargesRepaidAtDisbursement(deriveSumTotalOfChargesRepaidAtDisbursement());
         updateLoanRepaymentPeriodsDerivedFields(actualDisbursementDate);
         updateLoanSummaryDerivedFields();
         handleDisbursementTransaction(actualDisbursementDate);
@@ -2230,7 +2232,24 @@ public class Loan extends AbstractPersistable<Long> {
         chargesPayment.updateLoan(this);
         this.loanTransactions.add(chargesPayment);
         updateLoanOutstandingBalaces();
-        charge.markAsFullyPaid();
+        
+        if (charge.isDisbursementPaidWithRepayment()) {
+        	BigDecimal totalFeeChargesRepaidAtDisbursement = this.summary.getTotalFeeChargesRepaidAtDisbursement();
+        	BigDecimal chargeAmount = chargesPayment.getAmount(getCurrency()).getAmount();
+        	totalFeeChargesRepaidAtDisbursement = totalFeeChargesRepaidAtDisbursement.add(chargeAmount);
+        	
+        	if (charge.isNotFullyPaid()) {
+        		charge.payCharge(chargeAmount);
+        	}
+        	
+        	this.summary.updateTotalFeeChargesRepaidAtDisbursement(totalFeeChargesRepaidAtDisbursement);
+        	updateLoanSummaryDerivedFields();
+        }
+        
+        else {
+        	charge.markAsFullyPaid();
+        }
+        
         return chargesPayment;
     }
 
@@ -2546,7 +2565,7 @@ public class Loan extends AbstractPersistable<Long> {
              */
             this.loanTransactions.addAll(changedTransactionDetail.getNewTransactionMappings().values());
         }
-
+        System.out.println("inside the loan makerepayment method");
         updateLoanSummaryDerivedFields();
 
         /**
@@ -4602,5 +4621,25 @@ public class Loan extends AbstractPersistable<Long> {
 	
 	public Client getClient() {
 		return this.client;
+	}
+	
+	private BigDecimal deriveSumTotalOfChargesRepaidAtDisbursement() {
+
+        Money chargesRepaid = Money.of(getCurrency(), BigDecimal.ZERO);
+
+        for (final LoanCharge charge : charges()) {
+            if (charge.isDueAtDisbursement()) {
+            	chargesRepaid = chargesRepaid.plus(charge.amount());
+            }
+        }
+
+        return chargesRepaid.getAmount();
+    }
+	
+	public void updateSumTotalOfChargesRepaidAtDisbursement(BigDecimal transactionAmount) {
+		
+		if (transactionAmount != null) {
+			this.summary.addToFeeChargesRepaidAtDisbursement(transactionAmount);
+		}
 	}
 }

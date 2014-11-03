@@ -104,6 +104,11 @@ public final class LoanSummary {
 
     @Column(name = "total_outstanding_derived", scale = 6, precision = 19)
     private BigDecimal totalOutstanding;
+    
+    @Column(name = "total_charges_repaid_at_disbursement_derived", scale = 6, precision = 19)
+    private BigDecimal totalFeeChargesRepaidAtDisbursement;
+    
+    // TODO - add variable to the data classes to reflect the changes made to the database schema
 
     public static LoanSummary create(final BigDecimal totalFeeChargesDueAtDisbursement) {
         return new LoanSummary(totalFeeChargesDueAtDisbursement);
@@ -217,10 +222,10 @@ public final class LoanSummary {
         this.totalFeeChargesCharged = totalFeeChargesCharged.getAmount();
 
         Money totalFeeChargesRepaid = summaryWrapper.calculateTotalFeeChargesRepaid(repaymentScheduleInstallments, currency);
-        if (disbursed) {
-            totalFeeChargesRepaid = totalFeeChargesRepaid.plus(this.totalFeeChargesDueAtDisbursement);
+        if (disbursed) { System.out.println("this.totalFeeChargesRepaidAtDisbursement: " + this.totalFeeChargesRepaidAtDisbursement);
+            totalFeeChargesRepaid = totalFeeChargesRepaid.plus(this.totalFeeChargesRepaidAtDisbursement);
         }
-        this.totalFeeChargesRepaid = totalFeeChargesRepaid.getAmount();
+        this.totalFeeChargesRepaid = totalFeeChargesRepaid.getAmount(); System.out.println("this.totalFeeChargesRepaid: " + this.totalFeeChargesRepaid);
 
         this.totalFeeChargesWaived = summaryWrapper.calculateTotalFeeChargesWaived(repaymentScheduleInstallments, currency).getAmount();
         this.totalFeeChargesWrittenOff = summaryWrapper.calculateTotalFeeChargesWrittenOff(repaymentScheduleInstallments, currency)
@@ -307,4 +312,18 @@ public final class LoanSummary {
     public BigDecimal getTotalPrincipalWrittenOff() {
         return this.totalPrincipalWrittenOff;
     }
+    
+    public void addToFeeChargesRepaidAtDisbursement(final BigDecimal transactionAmount) {
+    	this.totalFeeChargesRepaidAtDisbursement = this.totalFeeChargesRepaidAtDisbursement.add(transactionAmount);
+    	//this.totalFeeChargesRepaid = this.totalFeeChargesRepaid.add(transactionAmount);
+    	//this.totalFeeChargesOutstanding = this.totalFeeChargesOutstanding.subtract(transactionAmount);
+    }
+    
+    public BigDecimal getTotalFeeChargesRepaidAtDisbursement() {
+    	return this.totalFeeChargesRepaidAtDisbursement;
+    }
+
+	public void updateTotalFeeChargesRepaidAtDisbursement(BigDecimal totalFeeChargesRepaidAtDisbursement) {
+		this.totalFeeChargesRepaidAtDisbursement = totalFeeChargesRepaidAtDisbursement;
+	}
 }
