@@ -482,5 +482,40 @@ public class LoanAccountDomainServiceJpa implements LoanAccountDomainService {
             this.accountTransferRepository.save(transferTransaction);
         }
     }
+    
+    @Override
+    public LoanTransaction makeDisbursementWithRepaymentChargePayment(final Loan loan, final Long chargeId, final LocalDate transactionDate,
+            final BigDecimal transactionAmount, final PaymentDetail paymentDetail, final String noteText, final String txnExternalId) {
+    	
+    	checkClientOrGroupActive(loan);
+
+        final List<Long> existingTransactionIds = new ArrayList<>();
+        final List<Long> existingReversedTransactionIds = new ArrayList<>();
+
+        final Money paymentAmout = Money.of(loan.getCurrency(), transactionAmount);
+        final LoanTransaction newPaymentTransaction = LoanTransaction.loanPayment(null, loan.getOffice(), paymentAmout, paymentDetail,
+                transactionDate, txnExternalId, LoanTransactionType.REPAYMENT);
+        final boolean allowTransactionsOnHoliday = this.configurationDomainService.allowTransactionsOnHolidayEnabled();
+        final List<Holiday> holidays = this.holidayRepository.findByOfficeIdAndGreaterThanDate(loan.getOfficeId(),
+                transactionDate.toDate(), HolidayStatusType.ACTIVE.getValue());
+        final WorkingDays workingDays = this.workingDaysRepository.findOne();
+        final boolean allowTransactionsOnNonWorkingDay = this.configurationDomainService.allowTransactionsOnNonWorkingDayEnabled();
+        
+        loan.makeDisbursementWithRepaymentChargePayment(chargeId, defaultLoanLifecycleStateMachine(), existingTransactionIds, 
+        		existingReversedTransactionIds, allowTransactionsOnHoliday, holidays, workingDays, allowTransactionsOnNonWorkingDay, 
+        		newPaymentTransaction);
+        
+        saveLoanTransactionWithDataIntegrityViolationChecks(newPaymentTransaction);
+        saveAndFlushLoanWithDataIntegrityViolationChecks(loan);
+
+        if (StringUtils.isNotBlank(noteText)) {
+            final Note note = Note.loanTransactionNote(loan, newPaymentTransaction, noteText);
+            this.noteRepository.save(note);
+        }
+
+        postJournalEntries(loan, existingTransactionIds, existingReversedTransactionIds, false);
+        recalculateAccruals(loan);
+        return newPaymentTransaction;
+    }
 
 }

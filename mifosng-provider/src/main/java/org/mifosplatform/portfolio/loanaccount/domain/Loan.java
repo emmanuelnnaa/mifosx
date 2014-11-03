@@ -442,7 +442,7 @@ public class Loan extends AbstractPersistable<Long> {
         Money chargesDue = Money.of(getCurrency(), BigDecimal.ZERO);
 
         for (final LoanCharge charge : charges()) {
-            if (charge.isDueAtDisbursement()) {
+            if (charge.isDueAtDisbursement() || charge.isDisbursementPaidWithRepayment()) {
                 chargesDue = chargesDue.plus(charge.amount());
             }
         }
@@ -1862,6 +1862,7 @@ public class Loan extends AbstractPersistable<Long> {
         }
 
         updateSummaryWithTotalFeeChargesDueAtDisbursement(deriveSumTotalOfChargesDueAtDisbursement());
+        this.summary.updateTotalFeeChargesRepaidAtDisbursement(deriveSumTotalOfChargesRepaidAtDisbursement());
         updateLoanRepaymentPeriodsDerivedFields(actualDisbursementDate);
         updateLoanSummaryDerivedFields();
         handleDisbursementTransaction(actualDisbursementDate);
@@ -4602,5 +4603,53 @@ public class Loan extends AbstractPersistable<Long> {
 	
 	public Client getClient() {
 		return this.client;
+	}
+	
+	private BigDecimal deriveSumTotalOfChargesRepaidAtDisbursement() {
+
+        Money chargesRepaid = Money.of(getCurrency(), BigDecimal.ZERO);
+
+        for (final LoanCharge charge : charges()) {
+            if (charge.isDueAtDisbursement()) {
+            	chargesRepaid = chargesRepaid.plus(charge.amount());
+            }
+        }
+
+        return chargesRepaid.getAmount();
+    }
+	
+	public void makeDisbursementWithRepaymentChargePayment(final Long chargeId, final LoanLifecycleStateMachine loanLifecycleStateMachine,
+            final List<Long> existingTransactionIds, final List<Long> existingReversedTransactionIds,
+            final boolean allowTransactionsOnHoliday, final List<Holiday> holidays, final WorkingDays workingDays,
+            final boolean allowTransactionsOnNonWorkingDay, final LoanTransaction paymentTransaction) {
+		
+		existingTransactionIds.addAll(findExistingTransactionIds());
+        existingReversedTransactionIds.addAll(findExistingReversedTransactionIds());
+        LoanCharge charge = null;
+        
+        for (final LoanCharge loanCharge : this.charges) {
+            if (loanCharge.isActive() && chargeId.equals(loanCharge.getId())) {
+                charge = loanCharge;
+            }
+        }
+        
+        final LoanChargePaidBy loanChargePaidBy = new LoanChargePaidBy(paymentTransaction, charge, charge.amount(), null);
+        paymentTransaction.getLoanChargesPaid().add(loanChargePaidBy);
+        final Money zero = Money.zero(getCurrency());
+        paymentTransaction.updateComponents(zero, zero, charge.getAmount(getCurrency()), zero);
+        paymentTransaction.updateLoan(this);
+        this.loanTransactions.add(paymentTransaction);
+        
+        BigDecimal totalFeeChargesRepaidAtDisbursement = this.summary.getTotalFeeChargesRepaidAtDisbursement();
+    	BigDecimal chargeAmount = paymentTransaction.getAmount(getCurrency()).getAmount();
+    	totalFeeChargesRepaidAtDisbursement = totalFeeChargesRepaidAtDisbursement.add(chargeAmount);
+    	
+    	if (charge.isNotFullyPaid()) {
+    		charge.payCharge(chargeAmount);
+    	}
+    	
+    	this.summary.updateTotalFeeChargesRepaidAtDisbursement(totalFeeChargesRepaidAtDisbursement);
+    	updateLoanOutstandingBalaces();
+    	updateLoanSummaryDerivedFields();
 	}
 }

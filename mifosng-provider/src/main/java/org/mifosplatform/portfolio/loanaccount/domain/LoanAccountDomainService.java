@@ -39,4 +39,7 @@ public interface LoanAccountDomainService {
      * @param loan
      */
     void recalculateAccruals(Loan loan);
+    
+    LoanTransaction makeDisbursementWithRepaymentChargePayment(Loan loan, Long chargeId, LocalDate transactionDate,
+            BigDecimal transactionAmount, PaymentDetail paymentDetail, String noteText, String txnExternalId);
 }

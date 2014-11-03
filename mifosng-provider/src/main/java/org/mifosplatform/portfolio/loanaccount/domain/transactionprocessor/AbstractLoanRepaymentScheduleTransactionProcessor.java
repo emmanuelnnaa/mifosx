@@ -52,7 +52,7 @@ public abstract class AbstractLoanRepaymentScheduleTransactionProcessor implemen
 
         if (charges != null) {
             for (final LoanCharge loanCharge : charges) {
-                if (!loanCharge.isDueAtDisbursement()) {
+                if (!loanCharge.isDueAtDisbursement() && !loanCharge.isDisbursementPaidWithRepayment()) {
                     loanCharge.resetPaidAmount(currency);
                 }
             }
@@ -327,7 +327,7 @@ public abstract class AbstractLoanRepaymentScheduleTransactionProcessor implemen
         LoanCharge installemntCharge = null;
         LoanInstallmentCharge chargePerInstallment = null;
         for (final LoanCharge loanCharge : charges) {
-            if (loanCharge.isNotFullyPaid() && !loanCharge.isDueAtDisbursement()) {
+            if (loanCharge.isNotFullyPaid() && !loanCharge.isDueAtDisbursement() && !loanCharge.isDisbursementPaidWithRepayment()) {
                 if (loanCharge.isInstalmentFee()) {
                     LoanInstallmentCharge unpaidLoanChargePerInstallment = loanCharge.getUnpaidInstallmentLoanCharge();
                     if (chargePerInstallment == null

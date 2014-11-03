@@ -549,7 +549,8 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
                     + " lir.id as lirId, lir.loan_id as loanId, lir.compound_type_enum as compoundType, lir.reschedule_strategy_enum as rescheduleStrategy, "
                     + " lir.rest_frequency_type_enum as restFrequencyEnum, lir.rest_frequency_interval as restFrequencyInterval, "
                     + " lir.rest_freqency_date as restFrequencyDate, "
-                    + " l.create_standing_instruction_at_disbursement as createStandingInstructionAtDisbursement "
+                    + " l.create_standing_instruction_at_disbursement as createStandingInstructionAtDisbursement, "
+                    + " l.total_charges_repaid_at_disbursement_derived as totalChargesRepaidAtDisbursement"
                     + " from m_loan l" //
                     + " join m_product_loan lp on lp.id = l.product_id" //
                     + " left join m_loan_recalculation_details lir on lir.loan_id = l.id "
@@ -705,6 +706,8 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
 
             final BigDecimal feeChargesDueAtDisbursementCharged = JdbcSupport.getBigDecimalDefaultToZeroIfNull(rs,
                     "feeChargesDueAtDisbursementCharged");
+            final BigDecimal totalChargesRepaidAtDisbursement = JdbcSupport.getBigDecimalDefaultToZeroIfNull(rs, "totalChargesRepaidAtDisbursement");
+            
             LoanSummaryData loanSummary = null;
             Boolean inArrears = false;
             if (status.id().intValue() >= 300) {
@@ -757,7 +760,7 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
                         feeChargesWaived, feeChargesWrittenOff, feeChargesOutstanding, feeChargesOverdue, penaltyChargesCharged,
                         penaltyChargesPaid, penaltyChargesWaived, penaltyChargesWrittenOff, penaltyChargesOutstanding,
                         penaltyChargesOverdue, totalExpectedRepayment, totalRepayment, totalExpectedCostOfLoan, totalCostOfLoan,
-                        totalWaived, totalWrittenOff, totalOutstanding, totalOverdue, overdueSinceDate);
+                        totalWaived, totalWrittenOff, totalOutstanding, totalOverdue, overdueSinceDate, totalChargesRepaidAtDisbursement);
             }
 
             GroupGeneralData groupData = null;
@@ -810,7 +813,8 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
                     graceOnInterestPayment, graceOnInterestCharged, interestChargedFromDate, timeline, loanSummary,
                     feeChargesDueAtDisbursementCharged, syncDisbursementWithMeeting, loanCounter, loanProductCounter, multiDisburseLoan,
                     fixedEmiAmount, outstandingLoanBalance, inArrears, graceOnArrearsAgeing, isNPA, daysInMonthType, daysInYearType,
-                    isInterestRecalculationEnabled, interestRecalculationData, createStandingInstructionAtDisbursement);
+                    isInterestRecalculationEnabled, interestRecalculationData, createStandingInstructionAtDisbursement, 
+                    totalChargesRepaidAtDisbursement);
         }
     }
 
@@ -871,6 +875,7 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
         private LocalDate lastDueDate;
         private BigDecimal outstandingLoanPrincipalBalance;
         private boolean excludePastUndisbursed;
+        private final BigDecimal totalFeeChargesRepaidAtDisbursement;
 
         public LoanScheduleResultSetExtractor(final RepaymentScheduleRelatedLoanData repaymentScheduleRelatedLoanData,
                 Collection<DisbursementData> disbursementData, boolean isInterestRecalculationEnabled) {
@@ -881,6 +886,7 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
             this.outstandingLoanPrincipalBalance = this.disbursement.amount();
             this.disbursementData = disbursementData;
             this.excludePastUndisbursed = isInterestRecalculationEnabled;
+            this.totalFeeChargesRepaidAtDisbursement = repaymentScheduleRelatedLoanData.getTotalFeeChargesRepaidAtDisbursement();
         }
 
         public String schema() {
@@ -896,10 +902,9 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
 
         @Override
         public LoanScheduleData extractData(final ResultSet rs) throws SQLException, DataAccessException {
-
-            final LoanSchedulePeriodData disbursementPeriod = LoanSchedulePeriodData.disbursementOnlyPeriod(
+        	final LoanSchedulePeriodData disbursementPeriod = LoanSchedulePeriodData.disbursementOnlyPeriod(
                     this.disbursement.disbursementDate(), this.disbursement.amount(), this.totalFeeChargesDueAtDisbursement,
-                    this.disbursement.isDisbursed());
+                    this.disbursement.isDisbursed(), totalFeeChargesRepaidAtDisbursement);
 
             final Collection<LoanSchedulePeriodData> periods = new ArrayList<>();
             final MonetaryCurrency monCurrency = new MonetaryCurrency(this.currency.code(), this.currency.decimalPlaces(),
@@ -949,7 +954,8 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
                         if (fromDate.equals(this.disbursement.disbursementDate()) && data.disbursementDate().equals(fromDate)) {
                             principal = principal.add(data.amount());
                             final LoanSchedulePeriodData periodData = LoanSchedulePeriodData.disbursementOnlyPeriod(
-                                    data.disbursementDate(), data.amount(), this.totalFeeChargesDueAtDisbursement, data.isDisbursed());
+                                    data.disbursementDate(), data.amount(), this.totalFeeChargesDueAtDisbursement, data.isDisbursed(), 
+                                    this.totalFeeChargesRepaidAtDisbursement);
                             periods.add(periodData);
                             this.outstandingLoanPrincipalBalance = this.outstandingLoanPrincipalBalance.add(data.amount());
                         } else if (data.isDueForDisbursement(fromDate, dueDate)
@@ -958,7 +964,8 @@ public class LoanReadPlatformServiceImpl implements LoanReadPlatformService {
                                     || (excludePastUndisbursed && (data.isDisbursed() || !data.disbursementDate().isBefore(LocalDate.now())))) {
                                 principal = principal.add(data.amount());
                                 final LoanSchedulePeriodData periodData = LoanSchedulePeriodData.disbursementOnlyPeriod(
-                                        data.disbursementDate(), data.amount(), BigDecimal.ZERO, data.isDisbursed());
+                                        data.disbursementDate(), data.amount(), BigDecimal.ZERO, data.isDisbursed(), 
+                                        this.totalFeeChargesRepaidAtDisbursement);
                                 periods.add(periodData);
                                 this.outstandingLoanPrincipalBalance = this.outstandingLoanPrincipalBalance.add(data.amount());
                             }

@@ -337,27 +337,6 @@ public class LoanWritePlatformServiceJpaRepositoryImpl implements LoanWritePlatf
         
         final Set<LoanCharge> loanCharges = loan.charges();
         
-        final List<LoanRepaymentScheduleInstallment> repaymentScheduleInstallments = loan.getRepaymentScheduleInstallments();
-        LoanRepaymentScheduleInstallment firstUnpaidInstallment = null;
-        
-        if (repaymentScheduleInstallments.size() > 0) {
-        	for (LoanRepaymentScheduleInstallment repaymentScheduleInstallment : repaymentScheduleInstallments) {
-        		if (!repaymentScheduleInstallment.isObligationsMet()) {
-        			firstUnpaidInstallment = repaymentScheduleInstallment;
-        			break;
-        		}
-        	}
-        }
-        
-        for (LoanCharge loanCharge : loanCharges) {
-        	if (loanCharge.isDisbursementPaidWithRepayment() && loanCharge.getDueLocalDate() == null) {
-        		loanCharge.update(firstUnpaidInstallment.getDueDate());
-        		loan.updateLoanCharge(loanCharge);
-        		
-        		this.loanChargeRepository.save(loanCharge);
-        	}
-        }
-        
         if (!changes.isEmpty()) {
         	saveAndFlushLoanWithDataIntegrityViolationChecks(loan);
 
@@ -709,7 +688,7 @@ public class LoanWritePlatformServiceJpaRepositoryImpl implements LoanWritePlatf
         this.loanEventApiJsonValidator.validateNewRepaymentTransaction(command.json());
 
         final LocalDate transactionDate = command.localDateValueOfParameterNamed("transactionDate");
-        final BigDecimal transactionAmount = command.bigDecimalValueOfParameterNamed("transactionAmount");
+        BigDecimal transactionAmount = command.bigDecimalValueOfParameterNamed("transactionAmount");
         final String txnExternalId = command.stringValueOfParameterNamedAllowingNull("externalId");
 
         final Map<String, Object> changes = new LinkedHashMap<>();
@@ -725,11 +704,78 @@ public class LoanWritePlatformServiceJpaRepositoryImpl implements LoanWritePlatf
         }
         final Loan loan = this.loanAssembler.assembleFrom(loanId);
         final PaymentDetail paymentDetail = this.paymentDetailWritePlatformService.createAndPersistPaymentDetail(command, changes);
+        final Collection<LoanCharge> loanCharges = loan.charges();
+        BigDecimal totalLoanTransactionAmount = BigDecimal.ZERO;
+        
+        if (loanCharges != null) {
+        	
+        	for (LoanCharge loanCharge : loanCharges) {
+        		
+        		if (transactionAmount.compareTo(BigDecimal.ZERO) == 0) {
+        			break;
+        		}
+        		
+        		else if (loanCharge.isDisbursementPaidWithRepayment() && loanCharge.isNotFullyPaid()) {
+        			BigDecimal loanChargeTransactionAmount = BigDecimal.ZERO;
+        			BigDecimal outstandingChargeFee = loanCharge.amountOutstanding();
+        			
+        			if ((transactionAmount.compareTo(outstandingChargeFee) == 0) || 
+        					(transactionAmount.compareTo(outstandingChargeFee) == -1 && 
+        					(transactionAmount.compareTo(BigDecimal.ZERO) == 1))) {
+        				loanChargeTransactionAmount = transactionAmount;
+        				transactionAmount = BigDecimal.ZERO;
+        			}
+        			
+        			else if (transactionAmount.compareTo(outstandingChargeFee) == 1) {
+        				loanChargeTransactionAmount = outstandingChargeFee;
+        				transactionAmount = transactionAmount.subtract(loanChargeTransactionAmount);
+        			}
+        			
+        			totalLoanTransactionAmount.add(loanChargeTransactionAmount);
+        			
+        			this.loanAccountDomainService.makeDisbursementWithRepaymentChargePayment(loan, loanCharge.getId(), transactionDate, 
+        					loanChargeTransactionAmount, paymentDetail, noteText, txnExternalId);
+        		}
+        	}
+        }
 
         boolean isAccountTransfer = false;
         final CommandProcessingResultBuilder commandProcessingResultBuilder = new CommandProcessingResultBuilder();
-        this.loanAccountDomainService.makeRepayment(loan, commandProcessingResultBuilder, transactionDate, transactionAmount,
-                paymentDetail, noteText, txnExternalId, isRecoveryRepayment, isAccountTransfer);
+        
+        if (transactionAmount.compareTo(BigDecimal.ZERO) == 1) {
+        	this.loanAccountDomainService.makeRepayment(loan, commandProcessingResultBuilder, transactionDate, transactionAmount,
+                    paymentDetail, noteText, txnExternalId, isRecoveryRepayment, isAccountTransfer);
+        }
+        
+        if (loanCharges != null) {
+        	
+        	for (LoanCharge loanCharge : loanCharges) {
+        		
+        		if (totalLoanTransactionAmount.compareTo(BigDecimal.ZERO) == 0) {
+        			break;
+        		}
+        		
+        		else if (loanCharge.isDisbursementPaidWithRepayment() && loanCharge.isNotFullyPaid()) {
+        			BigDecimal loanChargeTransactionAmount = BigDecimal.ZERO;
+        			BigDecimal outstandingChargeFee = loanCharge.amountOutstanding();
+        			
+        			if ((totalLoanTransactionAmount.compareTo(outstandingChargeFee) == 0) || 
+        					(totalLoanTransactionAmount.compareTo(outstandingChargeFee) == -1 && 
+        					(totalLoanTransactionAmount.compareTo(BigDecimal.ZERO) == 1))) {
+        				loanChargeTransactionAmount = totalLoanTransactionAmount;
+        				totalLoanTransactionAmount = BigDecimal.ZERO;
+        			}
+        			
+        			else if (totalLoanTransactionAmount.compareTo(outstandingChargeFee) == 1) {
+        				loanChargeTransactionAmount = outstandingChargeFee;
+        				totalLoanTransactionAmount = totalLoanTransactionAmount.subtract(loanChargeTransactionAmount);
+        			}
+        			
+        			this.loanAccountDomainService.makeDisbursementWithRepaymentChargePayment(loan, loanCharge.getId(), transactionDate, 
+        					loanChargeTransactionAmount, paymentDetail, noteText, txnExternalId);
+        		}
+        	}
+        }
 
         return commandProcessingResultBuilder.withCommandId(command.commandId()) //
                 .withLoanId(loanId) //

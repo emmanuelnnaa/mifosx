@@ -104,6 +104,9 @@ public final class LoanSummary {
 
     @Column(name = "total_outstanding_derived", scale = 6, precision = 19)
     private BigDecimal totalOutstanding;
+    
+    @Column(name = "total_charges_repaid_at_disbursement_derived", scale = 6, precision = 19)
+    private BigDecimal totalFeeChargesRepaidAtDisbursement;
 
     public static LoanSummary create(final BigDecimal totalFeeChargesDueAtDisbursement) {
         return new LoanSummary(totalFeeChargesDueAtDisbursement);
@@ -218,7 +221,7 @@ public final class LoanSummary {
 
         Money totalFeeChargesRepaid = summaryWrapper.calculateTotalFeeChargesRepaid(repaymentScheduleInstallments, currency);
         if (disbursed) {
-            totalFeeChargesRepaid = totalFeeChargesRepaid.plus(this.totalFeeChargesDueAtDisbursement);
+            totalFeeChargesRepaid = totalFeeChargesRepaid.plus(this.totalFeeChargesRepaidAtDisbursement);
         }
         this.totalFeeChargesRepaid = totalFeeChargesRepaid.getAmount();
 
@@ -307,4 +310,12 @@ public final class LoanSummary {
     public BigDecimal getTotalPrincipalWrittenOff() {
         return this.totalPrincipalWrittenOff;
     }
+    
+    public BigDecimal getTotalFeeChargesRepaidAtDisbursement() {
+    	return this.totalFeeChargesRepaidAtDisbursement;
+    }
+
+	public void updateTotalFeeChargesRepaidAtDisbursement(BigDecimal totalFeeChargesRepaidAtDisbursement) {
+		this.totalFeeChargesRepaidAtDisbursement = totalFeeChargesRepaidAtDisbursement;
+	}
 }
