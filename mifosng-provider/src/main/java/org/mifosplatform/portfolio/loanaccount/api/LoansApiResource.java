@@ -58,6 +58,7 @@ import org.mifosplatform.portfolio.charge.service.ChargeReadPlatformService;
 import org.mifosplatform.portfolio.client.data.ClientData;
 import org.mifosplatform.portfolio.collateral.data.CollateralData;
 import org.mifosplatform.portfolio.collateral.service.CollateralReadPlatformService;
+import org.mifosplatform.portfolio.creditcheck.CreditCheckConstants;
 import org.mifosplatform.portfolio.fund.data.FundData;
 import org.mifosplatform.portfolio.fund.service.FundReadPlatformService;
 import org.mifosplatform.portfolio.group.data.GroupGeneralData;
@@ -113,7 +114,8 @@ public class LoansApiResource {
             "interestCalculationPeriodTypeOptions", "repaymentFrequencyTypeOptions", "termFrequencyTypeOptions",
             "interestRateFrequencyTypeOptions", "fundOptions", "repaymentStrategyOptions", "chargeOptions", "loanOfficerOptions",
             "loanPurposeOptions", "loanCollateralOptions", "chargeTemplate", "calendarOptions", "syncDisbursementWithMeeting",
-            "loanCounter", "loanProductCounter", "notes", "accountLinkingOptions", "linkedAccount"));
+            "loanCounter", "loanProductCounter", "notes", "accountLinkingOptions", "linkedAccount", 
+            CreditCheckConstants.CREDIT_CHECKS_PARAM_NAME, CreditCheckConstants.CREDIT_CHECK_OPTIONS_PARAM_NAME));
 
     private final String resourceNameForPermissions = "LOAN";
 

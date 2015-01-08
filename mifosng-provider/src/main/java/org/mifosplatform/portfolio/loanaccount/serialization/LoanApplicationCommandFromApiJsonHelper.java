@@ -23,6 +23,7 @@ import org.mifosplatform.infrastructure.core.exception.InvalidJsonException;
 import org.mifosplatform.infrastructure.core.exception.PlatformApiDataValidationException;
 import org.mifosplatform.infrastructure.core.serialization.FromJsonHelper;
 import org.mifosplatform.portfolio.accountdetails.domain.AccountType;
+import org.mifosplatform.portfolio.creditcheck.CreditCheckConstants;
 import org.mifosplatform.portfolio.loanaccount.api.LoanApiConstants;
 import org.mifosplatform.portfolio.loanaccount.domain.Loan;
 import org.mifosplatform.portfolio.loanaccount.domain.LoanCharge;
@@ -66,7 +67,8 @@ public final class LoanApplicationCommandFromApiJsonHelper {
             "syncDisbursementWithMeeting",// optional
             "linkAccountId", LoanApiConstants.disbursementDataParameterName, LoanApiConstants.emiAmountParameterName,
             LoanApiConstants.maxOutstandingBalanceParameterName, LoanProductConstants.graceOnArrearsAgeingParameterName,
-            LoanProductConstants.recalculationRestFrequencyDateParamName, "createStandingInstructionAtDisbursement"));
+            LoanProductConstants.recalculationRestFrequencyDateParamName, "createStandingInstructionAtDisbursement", 
+            CreditCheckConstants.CREDIT_CHECKS_PARAM_NAME));
 
     private final FromJsonHelper fromApiJsonHelper;
     private final CalculateLoanScheduleQueryFromApiJsonHelper apiJsonHelper;
@@ -374,6 +376,23 @@ public final class LoanApplicationCommandFromApiJsonHelper {
                     .ignoreIfNull().positiveAmount();
         }
         validateLoanMultiDisbursementdate(element, baseDataValidator, expectedDisbursementDate, principal);
+        
+        // loan credit check validation
+        if (element.isJsonObject() && this.fromApiJsonHelper.parameterExists(CreditCheckConstants.CREDIT_CHECKS_PARAM_NAME, element)) {
+            final JsonObject jsonObject = element.getAsJsonObject();
+            
+            if (jsonObject.get(CreditCheckConstants.CREDIT_CHECKS_PARAM_NAME).isJsonArray()) {
+                final Type typeToken = new TypeToken<Map<String, Object>>() {}.getType();
+                final JsonArray jsonArray = jsonObject.get(CreditCheckConstants.CREDIT_CHECKS_PARAM_NAME).getAsJsonArray();
+                
+                for (int i = 0; i < jsonArray.size(); i++) {
+                    final JsonObject loanCreditCheck = jsonArray.get(i).getAsJsonObject();
+                    final String objectToJson = this.fromApiJsonHelper.toJson(loanCreditCheck);
+                    this.fromApiJsonHelper.checkForUnsupportedParameters(typeToken, objectToJson,
+                            LoanApiConstants.ADD_CREDIT_CHECK_REQUEST_PARAMETERS);
+                }
+            }
+        }
 
         if (!dataValidationErrors.isEmpty()) { throw new PlatformApiDataValidationException(dataValidationErrors); }
     }
@@ -716,6 +735,23 @@ public final class LoanApplicationCommandFromApiJsonHelper {
                     LoanApiConstants.maxOutstandingBalanceParameterName, element);
             baseDataValidator.reset().parameter(LoanApiConstants.maxOutstandingBalanceParameterName).value(maxOutstandingBalance)
                     .ignoreIfNull().positiveAmount();
+        }
+        
+        // loan credit check validation
+        if (element.isJsonObject() && this.fromApiJsonHelper.parameterExists(CreditCheckConstants.CREDIT_CHECKS_PARAM_NAME, element)) {
+            final JsonObject jsonObject = element.getAsJsonObject();
+            
+            if (jsonObject.get(CreditCheckConstants.CREDIT_CHECKS_PARAM_NAME).isJsonArray()) {
+                final Type typeToken = new TypeToken<Map<String, Object>>() {}.getType();
+                final JsonArray jsonArray = jsonObject.get(CreditCheckConstants.CREDIT_CHECKS_PARAM_NAME).getAsJsonArray();
+                
+                for (int i = 0; i < jsonArray.size(); i++) {
+                    final JsonObject loanCreditCheck = jsonArray.get(i).getAsJsonObject();
+                    final String objectToJson = this.fromApiJsonHelper.toJson(loanCreditCheck);
+                    this.fromApiJsonHelper.checkForUnsupportedParameters(typeToken, objectToJson,
+                            LoanApiConstants.ADD_CREDIT_CHECK_REQUEST_PARAMETERS);
+                }
+            }
         }
 
         validateLoanMultiDisbursementdate(element, baseDataValidator, expectedDisbursementDate, principal);

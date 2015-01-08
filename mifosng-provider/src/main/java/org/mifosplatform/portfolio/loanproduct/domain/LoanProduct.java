@@ -42,6 +42,7 @@ import org.mifosplatform.portfolio.charge.domain.Charge;
 import org.mifosplatform.portfolio.common.domain.DaysInMonthType;
 import org.mifosplatform.portfolio.common.domain.DaysInYearType;
 import org.mifosplatform.portfolio.common.domain.PeriodFrequencyType;
+import org.mifosplatform.portfolio.creditcheck.domain.CreditCheck;
 import org.mifosplatform.portfolio.fund.domain.Fund;
 import org.mifosplatform.portfolio.loanaccount.loanschedule.domain.AprCalculator;
 import org.mifosplatform.portfolio.loanproduct.LoanProductConstants;
@@ -125,9 +126,14 @@ public class LoanProduct extends AbstractPersistable<Long> {
     @LazyCollection(LazyCollectionOption.FALSE)
     @OneToOne(cascade = CascadeType.ALL, mappedBy = "loanProduct", optional = true, orphanRemoval = true)
     private LoanProductInterestRecalculationDetails productInterestRecalculationDetails;
+    
+    @ManyToMany
+    @JoinTable(name = "m_product_loan_credit_check", joinColumns = @JoinColumn(name = "product_loan_id"), inverseJoinColumns = @JoinColumn(name = "credit_check_id"))
+    private List<CreditCheck> creditChecks;
 
     public static LoanProduct assembleFromJson(final Fund fund, final LoanTransactionProcessingStrategy loanTransactionProcessingStrategy,
-            final List<Charge> productCharges, final JsonCommand command, final AprCalculator aprCalculator) {
+            final List<Charge> productCharges, final JsonCommand command, final AprCalculator aprCalculator,
+            final List<CreditCheck> creditChecks) {
 
         final String name = command.stringValueOfParameterNamed("name");
         final String shortName = command.stringValueOfParameterNamed(LoanProductConstants.shortName);
@@ -213,7 +219,7 @@ public class LoanProduct extends AbstractPersistable<Long> {
                 graceOnInterestCharged, amortizationMethod, inArrearsTolerance, productCharges, accountingRuleType, includeInBorrowerCycle,
                 startDate, closeDate, externalId, useBorrowerCycle, loanProductBorrowerCycleVariations, multiDisburseLoan, maxTrancheCount,
                 outstandingLoanBalance, graceOnArrearsAgeing, overdueDaysForNPA, daysInMonthType, daysInYearType,
-                isInterestRecalculationEnabled, interestRecalculationSettings);
+                isInterestRecalculationEnabled, interestRecalculationSettings, creditChecks);
 
     }
 
@@ -430,7 +436,8 @@ public class LoanProduct extends AbstractPersistable<Long> {
             final Set<LoanProductBorrowerCycleVariations> loanProductBorrowerCycleVariations, final boolean multiDisburseLoan,
             final Integer maxTrancheCount, final BigDecimal outstandingLoanBalance, final Integer graceOnArrearsAgeing,
             final Integer overdueDaysForNPA, final DaysInMonthType daysInMonthType, final DaysInYearType daysInYearType,
-            final boolean isInterestRecalculationEnabled, final LoanProductInterestRecalculationDetails productInterestRecalculationDetails) {
+            final boolean isInterestRecalculationEnabled, final LoanProductInterestRecalculationDetails productInterestRecalculationDetails, 
+            final List<CreditCheck> creditChecks) {
         this.fund = fund;
         this.transactionProcessingStrategy = transactionProcessingStrategy;
         this.name = name.trim();
@@ -479,6 +486,10 @@ public class LoanProduct extends AbstractPersistable<Long> {
         this.loanProducTrancheDetails = new LoanProductTrancheDetails(multiDisburseLoan, maxTrancheCount, outstandingLoanBalance);
         this.overdueDaysForNPA = overdueDaysForNPA;
         this.productInterestRecalculationDetails = productInterestRecalculationDetails;
+        
+        if (creditChecks != null) {
+            this.creditChecks = creditChecks;
+        }
     }
 
     public MonetaryCurrency getCurrency() {

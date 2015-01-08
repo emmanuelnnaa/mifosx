@@ -2194,4 +2194,38 @@ public class CommandWrapperBuilder {
     	this.href = "/rescheduleloans/" + requestId + "?command=reject";
     	return this;
     }
+    
+    public CommandWrapperBuilder createCreditCheck(final String entityName) {
+        this.actionName = "CREATE";
+        this.entityName = entityName;
+        this.entityId = null;
+        this.href = "/creditchecks";
+        return this;
+    }
+    
+    public CommandWrapperBuilder deleteCreditCheck(final String entityName, final Long entityId) {
+        this.actionName = "DELETE";
+        this.entityName = entityName;
+        this.entityId = entityId;
+        this.href = "/creditchecks/" + entityId;
+        return this;
+    }
+    
+    public CommandWrapperBuilder updateCreditCheck(final String entityName, final Long entityId) {
+        this.actionName = "UPDATE";
+        this.entityName = entityName;
+        this.entityId = entityId;
+        this.href = "/creditchecks/" + entityId;
+        return this;
+    }
+    
+    public CommandWrapperBuilder deactivateCreditCheck(final String entityName, final Long loanId, 
+            final Long loanCreditCheckId) {
+        this.actionName = "DEACTIVATE";
+        this.entityName = entityName;
+        this.loanId = loanId;
+        this.entityId = loanCreditCheckId;
+        this.href = "/loans/" + loanId + "/creditchecks/" + loanCreditCheckId;
+        return this;
+    }
 }
